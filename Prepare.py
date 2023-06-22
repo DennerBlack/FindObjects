@@ -17,7 +17,7 @@ for file in listdir(target_imgs):
 				img = np.zeros(kernel_size)
 				crop_img = image[kernel_size[0]*i:kernel_size[0]*(i+1),kernel_size[1]*j:kernel_size[1]*(j+1)]
 				img[:crop_img.shape[0], :crop_img.shape[1]] += crop_img
-				cv2.imwrite(raw_path+file+'_'+str(i)+str(j), img)
+				cv2.imwrite(raw_path+file[:-4]+'_'+str(i)+str(j)+'.png', img)
 
 
 
