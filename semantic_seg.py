@@ -4,7 +4,6 @@ from typing import Union
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 from keras.utils import array_to_img
-from pycocotools.coco import COCO
 import numpy as np
 import skimage.io as io
 import random
@@ -22,130 +21,15 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 matplotlib.use('TkAgg')
+
 config = ConfigProto()
 config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
 
-'''
-dataDir = r'cubes_dataset/coco'
-
-annFile = fr'{dataDir}/result.json'
-
-coco = COCO(annFile)
-catIDs = coco.getCatIds()
-cats = coco.loadCats(catIDs)
-
-
-def getClassName(classID: int, cats_: list):
-    for i in range(len(cats_)):
-        if cats_[i]['id'] == classID:
-            return cats_[i]['name']
-    return "None"
-
-
-print('The class name is', getClassName(1, cats))
-
-# Define the classes (out of the 81) which you want to see. Others will not be shown.
-filterClasses = ['white_cube', 'purple_cube', 'blue_cube']
-
-# Fetch class IDs only corresponding to the filterClasses
-catIds = coco.getCatIds(catNms=filterClasses)
-# Get all images containing the above Category IDs
-imgIds = coco.getImgIds(catIds=catIds)
-print("Number of images containing all the  classes:", len(imgIds))
-
-# load and display a random image
-img = coco.loadImgs(imgIds[np.random.randint(0, len(imgIds))])[0]
-I = io.imread(f'{dataDir}/{img["file_name"]}')/255.0
-n_plots = 3
-plt.subplot(1,n_plots,1)
-plt.axis('off')
-plt.imshow(I)
-
-
-annIds = coco.getAnnIds(imgIds=img['id'], catIds=catIds, iscrowd=None)
-anns = coco.loadAnns(annIds)
-coco.showAnns(anns)
-
-def allCombinationsFilter(classes):
-    images = []
-    if classes != None:
-        # iterate for each individual class in the list
-        for className in classes:
-            # get all images containing given class
-            catIds = coco.getCatIds(catNms=className)
-            imgIds = coco.getImgIds(catIds=catIds)
-            images += coco.loadImgs(imgIds)
-    else:
-        imgIds = coco.getImgIds()
-        images = coco.loadImgs(imgIds)
-
-    # Now, filter out the repeated images
-    unique_images = []
-    for i in range(len(images)):
-        if images[i] not in unique_images:
-            unique_images.append(images[i])
-
-    dataset_size = len(unique_images)
-    return dataset_size
-
-
-print("Number of images containing the filter classes:", allCombinationsFilter(filterClasses))
-
-plt.subplot(1,n_plots,2)
-plt.axis('off')
-#### GENERATE A SEGMENTATION MASK ####
-mask = np.zeros((img['height'],img['width']))
-for i in range(len(anns)):
-    className = getClassName(anns[i]['category_id'], cats)
-    pixel_value = filterClasses.index(className)+1
-    mask = np.maximum(coco.annToMask(anns[i])*pixel_value, mask)
-plt.imshow(mask)
-
-
-plt.subplot(1,n_plots,3)
-plt.axis('off')
-#### GENERATE A BINARY MASK ####
-mask = np.zeros((img['height'],img['width']))
-for i in range(len(anns)):
-    mask = np.maximum(coco.annToMask(anns[i]), mask)
-plt.imshow(mask)
-plt.show()
-'''
-
-
-def filterDataset(folder:str, classes:list, validation_count: int=10):
-    # initialize COCO api for instance annotations
-    annFile = fr'{folder}/result.json'
-    coco = COCO(annFile)
-
-    images = []
-
-    if classes != None:
-        # iterate for each individual class in the list
-        for className in classes:
-            # get all images containing given categories
-            catIds = coco.getCatIds(catNms=className)
-            imgIds = coco.getImgIds(catIds=catIds)
-            images += coco.loadImgs(imgIds)
-    else:
-        imgIds = coco.getImgIds()
-        images = coco.loadImgs(imgIds)
-
-    unique_images = []
-    for i in range(len(images)):
-        if images[i] not in unique_images:
-            unique_images.append(images[i])
-
-    random.shuffle(unique_images)
-    dataset_size = len(unique_images)
-
-    return unique_images[validation_count:], unique_images[:validation_count], dataset_size, coco
-
 
 def add_noise(img):
     mean = 0
-    stddev = 180
+    stddev = 0
     noise = np.zeros(img.shape, np.uint8)
     cv2.randn(noise, mean, stddev)
 
@@ -161,11 +45,14 @@ def get_dataset(dir):
             blur_img = cv2.GaussianBlur(image, (3, 3), 0)
             noise = add_noise(image)
             blur_noise = add_noise(blur_img)
-            images.extend([image, blur_img, noise, blur_noise])
+            '''cv2.imshow('im1', noise)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()'''
+            images.extend([image])#, blur_img, noise, blur_noise])
             if f'{i+1}.png' in files_labels:
-                masks.extend([cv2.imread(dir+'/labeled'+'/'+f'{i+1}.png', cv2.IMREAD_GRAYSCALE) for k in range(4)])
+                masks.extend([cv2.imread(dir+'/labeled'+'/'+f'{i+1}.png', cv2.IMREAD_GRAYSCALE)/255])# for k in range(4)])
             else:
-                masks.extend([np.zeros(input_image_size) for k in range(4)])
+                masks.extend([np.zeros(input_image_size)])# for k in range(4)])
     return images, masks
 
 def getClassName(classID, cats):
@@ -186,68 +73,6 @@ def getImage(imageObj, img_folder, input_image_size):
     else:  # To handle a black and white image, increase dimensions to 3
         stacked_img = np.stack((train_img,) * 3, axis=-1)
         return stacked_img
-
-
-def getNormalMask(imageObj, classes, coco, catIds, input_image_size):
-    annIds = coco.getAnnIds(imageObj['id'], catIds=catIds, iscrowd=None)
-    anns = coco.loadAnns(annIds)
-    cats = coco.loadCats(catIds)
-    train_mask = np.zeros(input_image_size)
-
-    for a in range(len(anns)):
-        className = getClassName(anns[a]['category_id'], cats)
-        pixel_value = classes.index(className) + 1
-        new_mask = cv2.resize(coco.annToMask(anns[a]) * pixel_value, input_image_size)
-        train_mask = np.maximum(new_mask, train_mask)
-
-    # Add extra dimension for parity with train_img size [X * X * 3]
-    train_mask = train_mask.reshape(input_image_size[0], input_image_size[1], 1)
-    return train_mask
-
-
-def getBinaryMask(imageObj, coco, catIds, input_image_size):
-    annIds = coco.getAnnIds(imageObj['id'], catIds=catIds, iscrowd=None)
-    anns = coco.loadAnns(annIds)
-    train_mask = np.zeros(input_image_size)
-    for a in range(len(anns)):
-        new_mask = cv2.resize(coco.annToMask(anns[a]), input_image_size)
-
-        # Threshold because resizing may cause extraneous values
-        new_mask[new_mask >= 0.5] = 1
-        new_mask[new_mask < 0.5] = 0
-
-        train_mask = np.maximum(new_mask, train_mask)
-
-    # Add extra dimension for parity with train_img size [X * X * 3]
-    train_mask = train_mask.reshape(input_image_size[0], input_image_size[1], 1)
-    return train_mask
-
-
-def dataGeneratorCoco(images, classes, coco, folder, input_image_size=(512, 512), mask_type='binary'):
-    img_folder = folder
-    dataset_size = len(images)
-    catIds = coco.getCatIds(catNms=classes)
-
-    img = np.zeros((dataset_size, input_image_size[0], input_image_size[1], 3)).astype('float')
-    mask = np.zeros((dataset_size, input_image_size[0], input_image_size[1], 1)).astype('float')
-
-    for i in range(dataset_size):
-        imageObj = images[i]
-
-        ### Retrieve Image ###
-        train_img = getImage(imageObj, img_folder, input_image_size)
-
-        ### Create Mask ###
-        if mask_type == "binary":
-            train_mask = getBinaryMask(imageObj, coco, catIds, input_image_size)
-
-        elif mask_type == "normal":
-            train_mask = getNormalMask(imageObj, classes, coco, catIds, input_image_size)
-
-            # Add to respective batch sized arrays
-        img[i] = train_img
-        mask[i] = train_mask
-    return img, mask
 
 
 
@@ -363,7 +188,10 @@ def get_model(img_size, num_classes):
 def get_mask(pred, i=0):
     mask = np.argmax(pred[i], axis=-1)
     mask = np.expand_dims(mask, axis=-1)
-    img = mask*(255/(num_classes-1))
+    try:
+        img = mask*(255/(num_classes-1))
+    except ZeroDivisionError:
+        img = mask * 255
     return img
 
 
@@ -419,7 +247,7 @@ def image_resize(image: np.ndarray, width=None, height=None, inter=None) -> Unio
 
 
 def get_masked_img(image):
-    val_preds = model.predict(cv2.resize(image, input_image_size).reshape(1, *input_image_size, 3), verbose=0)
+    val_preds = model.predict(cv2.resize(image, input_image_size).reshape(1, *input_image_size, 1), verbose=0)
     mask_gen = get_mask(val_preds)
     mask_gen_overlay = np.asarray(mask_gen)
     masked_image = get_colored_mask(mask_gen_overlay, num_classes, classes_colors, filterClasses)
@@ -436,6 +264,7 @@ def center_crop(im):
 
 
 def dice_metric(y_true, y_pred):
+    y_pred = y_pred[:,:,:,0]
     intersection = K.sum(K.sum(K.abs(y_true * y_pred), axis=-1))
     union = K.sum(K.sum(K.abs(y_true) + K.abs(y_pred), axis=-1))
     '''
@@ -447,6 +276,7 @@ def dice_metric(y_true, y_pred):
 
 
 def jaccard_distance_loss(x_true, x_pred, smooth=100):
+    x_pred = x_pred[:,:,:,0]
     intersection = K.sum(K.sum(K.abs(x_true * x_pred), axis=-1))
     sum_ = K.sum(K.sum(K.abs(x_true) + K.abs(x_pred), axis=-1))
     jac = (intersection + smooth) / (sum_ - intersection + smooth)
@@ -510,48 +340,15 @@ def IoU(x_true, x_pred):
     return np.mean(results)
 
 
-def retrain(optimizer, loss, metrics, train, val):
-    i = 0
-    while os.path.exists(f"weights/coco_scnn_E{n_epochs}_v{i+1}.h5"):
-        i += 1
-    print(f'load model: coco_scnn_E{n_epochs}_v{i}.h5')
-
-    model_local = keras.models.load_model(f'weights/coco_scnn_E{n_epochs}_v{i}.h5')
-
-    x = model_local.layers[-2].output
-    x = layers.Conv2D(num_classes, kernel_size=1, activation='softmax')(x)
-    new_model = keras.models.Model(inputs=model_local.input, outputs=x)
-
-    for layer in new_model.layers[:-1]:
-        layer.trainable = False
-
-    new_model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-
-    history = new_model.fit(x=train,
-                            epochs=n_epochs,
-                            validation_data=val,
-                            steps_per_epoch=steps_per_epoch,
-                            validation_steps=validation_steps)
-
-    i = 0
-    while os.path.exists(f"weights/retrain_coco_scnn_E{n_epochs}_v{i}.h5"):
-        i += 1
-    new_model.save(f'weights/retrain_coco_scnn_E{n_epochs}_v{i}.h5')
-    return new_model, history
-
-
 # Free up RAM in case the model definition cells were run multiple times
 keras.backend.clear_session()
 
 # Hyperparameters
 keras.utils.set_random_seed(101)
-n_epochs = 10
-batch_size = 4
+n_epochs = 200
+batch_size = 3
 num_classes = 2
 val_count = 1
-len_of_dataset = 164
-steps_per_epoch = (len_of_dataset - 0) // batch_size
-validation_steps = val_count // batch_size
 input_image_size = (512, 512)
 mask_type = 'normal'
 dataDir = r'data/dataset/'
@@ -571,20 +368,13 @@ augGeneratorArgs = dict(featurewise_center = False,
                         data_format = 'channels_last')
 
 # Generate train and validation arrays
-#train, val, dataset_size, coco = filterDataset(dataDir, filterClasses, validation_count=val_count)
-#train_gen = dataGeneratorCoco(train, filterClasses, coco, dataDir, input_image_size, mask_type)
-#val_gen = dataGeneratorCoco(val, filterClasses, coco, dataDir, input_image_size, mask_type)
-#train_x, train_y = augmentationsGenerator(train_gen, augGeneratorArgs)
-#val_x, val_y = augmentationsGenerator(val_gen, augGeneratorArgs)
 train_x, train_y = np.asarray(get_dataset(dataDir))
 val_x, val_y = np.asarray([cv2.imread(dataDir+'/'+'Screenshot_5_11.png', cv2.IMREAD_GRAYSCALE)]), \
-                np.asarray([cv2.imread(dataDir+'/'+'36.png', cv2.IMREAD_GRAYSCALE)])
+                np.asarray([cv2.imread(dataDir+'/'+'36.png', cv2.IMREAD_GRAYSCALE)/255])
 img_index = 0
 images_number = 0
 model = None
 load_model = 1
-retrain_model = 0
-plot_architecture = 1
 
 if not load_model:
     img_index = 1
@@ -595,29 +385,26 @@ if not load_model:
     loss = "sparse_categorical_crossentropy"
     metrics = [
         'accuracy',
-        #dice_metric,
-        #jaccard_distance_loss,
+        dice_metric,
+        jaccard_distance_loss,
     ]
     plt.subplot(1, images_number, 1)
     history = None
     i = 0
-    if retrain_model:
-        model, history = retrain(optimizer, loss, metrics, (train_x, train_y), (val_x, val_y))
-    else:
-        model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-        # Start training
-        history = model.fit(train_x,
-                            train_y,
-                            validation_data=(val_x, val_y),
-                            batch_size=batch_size,
-                            epochs = n_epochs,
-                            verbose = True)
 
-    if not retrain_model:
-        i = 0
-        while os.path.exists(f"weights/coco_scnn_E{n_epochs}_v{i}.h5"):
-            i += 1
-        model.save(f'weights/coco_scnn_E{n_epochs}_v{i}.h5')
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    # Start training
+    history = model.fit(train_x,
+                        train_y,
+                        validation_data=(val_x, val_y),
+                        batch_size=batch_size,
+                        epochs = n_epochs,
+                        verbose = True)
+
+    i = 0
+    while os.path.exists(f"weights/coco_scnn_E{n_epochs}_v{i}.h5"):
+        i += 1
+    model.save(f'weights/coco_scnn_E{n_epochs}_v{i}.h5')
 
     plt.plot(history.history['accuracy'])
     plt.plot(history.history['val_accuracy'])
@@ -625,42 +412,37 @@ if not load_model:
     plt.xlabel('epoch')
     plt.legend(['train', 'validation'], loc='upper left')
 else:
-    if retrain_model:
-        images_number = 3
-        i = 0
-        while os.path.exists(f"weights/retrain_coco_scnn_E{n_epochs}_v{i+1}.h5"):
-            i += 1
-        print(f'load model: retrain_coco_scnn_E{n_epochs}_v{i}.h5')
-        model = keras.models.load_model(f'weights/retrain_coco_scnn_E{n_epochs}_v{i}.h5')
-    else:
-        images_number = 3
-        i = 0
-        while os.path.exists(f"weights/coco_scnn_E{n_epochs}_v{i+1}.h5"):
-            i += 1
-        print(f'load model: coco_scnn_E{n_epochs}_v{i}.h5')
-        model = keras.models.load_model(f'weights/coco_scnn_E{n_epochs}_v{i}.h5')
+    images_number = 3
+    i = 0
+    while os.path.exists(f"weights/coco_scnn_E{n_epochs}_v{i+1}.h5"):
+        i += 1
+    print(f'load model: coco_scnn_E{n_epochs}_v{i}.h5')
+    model = keras.models.load_model(f'weights/coco_scnn_E{n_epochs}_v{i}.h5', custom_objects={"dice_metric": dice_metric,
+                                                        "jaccard_distance_loss": jaccard_distance_loss})
 
 
-
-
-
-image_gen = cv2.imread(dataDir+'/'+'Screenshot_5_11.png', cv2.IMREAD_GRAYSCALE)
+image_gen = cv2.imread(dataDir+'/'+'img.png', cv2.IMREAD_GRAYSCALE)
 image = image_gen
 plt.subplot(1, images_number, img_index+1)
 plt.imshow(image)
 val_preds = model.predict(cv2.resize(image, input_image_size).reshape(1,*input_image_size,1))
 
 plt.subplot(1, images_number, img_index+2)
-mask_gen = get_mask(val_preds)
+cv2.imshow('im0', image)
+cv2.imshow('im1', val_preds.reshape((512, 512, 2))[:,:,0]*255)
+cv2.imshow('im2', val_preds.reshape((512, 512, 2))[:,:,1]*255)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+mask_gen = np.uint8(val_preds.reshape((512, 512, 2))[:,:,0]*255)
 plt.imshow(mask_gen)
 
 plt.subplot(1, images_number, img_index+3)
-mask_gen_overlay = np.asarray(mask_gen)
-masked_image = get_colored_mask(mask_gen_overlay, num_classes, classes_colors, filterClasses)
-masked_image = cv2.addWeighted(image, 1, masked_image, 0.9, 0, dtype = cv2.CV_32F)
-plt.imshow(masked_image)
+#mask_gen_overlay = np.asarray(mask_gen)
+#masked_image = get_colored_mask(mask_gen_overlay, num_classes, classes_colors, filterClasses)
+#masked_image = cv2.addWeighted(image, 1, mask_gen, 0.9, 0, dtype = np.uint8)
+plt.imshow(mask_gen)
 plt.show()
-
+'''
 cap = cv2.VideoCapture(0)
 
 while (True):
@@ -678,7 +460,7 @@ while (True):
 cap.release()
 # Destroy all the windows
 cv2.destroyAllWindows()
-
+'''
 
 
 
