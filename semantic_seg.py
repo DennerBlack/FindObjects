@@ -576,9 +576,9 @@ augGeneratorArgs = dict(featurewise_center = False,
 #val_gen = dataGeneratorCoco(val, filterClasses, coco, dataDir, input_image_size, mask_type)
 #train_x, train_y = augmentationsGenerator(train_gen, augGeneratorArgs)
 #val_x, val_y = augmentationsGenerator(val_gen, augGeneratorArgs)
-train_x, train_y = get_dataset(dataDir)
-val_x, val_y = (cv2.imread(dataDir+'/'+'Screenshot_5_11.png', cv2.IMREAD_GRAYSCALE),
-                cv2.imread(dataDir+'/'+'36.png', cv2.IMREAD_GRAYSCALE))
+train_x, train_y = np.asarray(get_dataset(dataDir))
+val_x, val_y = np.asarray([cv2.imread(dataDir+'/'+'Screenshot_5_11.png', cv2.IMREAD_GRAYSCALE)]), \
+                np.asarray([cv2.imread(dataDir+'/'+'36.png', cv2.IMREAD_GRAYSCALE)])
 img_index = 0
 images_number = 0
 model = None
@@ -595,8 +595,8 @@ if not load_model:
     loss = "sparse_categorical_crossentropy"
     metrics = [
         'accuracy',
-        dice_metric,
-        jaccard_distance_loss,
+        #dice_metric,
+        #jaccard_distance_loss,
     ]
     plt.subplot(1, images_number, 1)
     history = None
