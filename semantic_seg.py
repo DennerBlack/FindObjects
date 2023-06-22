@@ -545,7 +545,7 @@ keras.backend.clear_session()
 
 # Hyperparameters
 keras.utils.set_random_seed(101)
-n_epochs = 100
+n_epochs = 10
 batch_size = 4
 num_classes = 2
 val_count = 1
@@ -582,7 +582,7 @@ val_x, val_y = np.asarray([cv2.imread(dataDir+'/'+'Screenshot_5_11.png', cv2.IMR
 img_index = 0
 images_number = 0
 model = None
-load_model = 0
+load_model = 1
 retrain_model = 0
 plot_architecture = 1
 
@@ -638,24 +638,17 @@ else:
         while os.path.exists(f"weights/coco_scnn_E{n_epochs}_v{i+1}.h5"):
             i += 1
         print(f'load model: coco_scnn_E{n_epochs}_v{i}.h5')
-        model = keras.models.load_model(f'weights/coco_scnn_E{n_epochs}_v{i}.h5',
-                                        custom_objects={"dice_metric": dice_metric,
-                                                        "jaccard_distance_loss": jaccard_distance_loss})
+        model = keras.models.load_model(f'weights/coco_scnn_E{n_epochs}_v{i}.h5')
 
 
-if plot_architecture:
-    keras.utils.plot_model(model,
-                           to_file=f'model_architecture_E{n_epochs}_v{i}.png',
-                           show_shapes=True,
-                           rankdir='TB',
-                           dpi=150)
 
 
-image_gen = cv2.imread(dataDir+'/'+'Screenshot_5_11.png')
-image = image_gen[0]
+
+image_gen = cv2.imread(dataDir+'/'+'Screenshot_5_11.png', cv2.IMREAD_GRAYSCALE)
+image = image_gen
 plt.subplot(1, images_number, img_index+1)
 plt.imshow(image)
-val_preds = model.predict(cv2.resize(image, input_image_size).reshape(1,*input_image_size,3))
+val_preds = model.predict(cv2.resize(image, input_image_size).reshape(1,*input_image_size,1))
 
 plt.subplot(1, images_number, img_index+2)
 mask_gen = get_mask(val_preds)
