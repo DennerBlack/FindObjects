@@ -29,7 +29,11 @@ def add_noise(img):
     return cv2.add(img, noise)
 
 
-def get_dataset(dir):
+def get_dataset(dir, mode):
+    if 'hard' in mode:
+        flag = 1
+    else:
+        flag = 2
     masks = []
     images = []
     files_labels = listdir(dir+'/labeled')
@@ -41,12 +45,15 @@ def get_dataset(dir):
             blur_img = cv2.GaussianBlur(image, (3, 3), 0)
             noise = add_noise(image)
             blur_noise = add_noise(blur_img)
-            '''cv2.imshow('im1', noise)
+            '''cv2.imshow('im1', image)
             cv2.waitKey(0)
             cv2.destroyAllWindows()'''
             images.extend([image, blur_img, noise, blur_noise])
-            if f'{i+1}.png' in files_labels:
-                masks.extend([cv2.imread(dir+'/labeled'+'/'+f'{i+1}.png', cv2.IMREAD_GRAYSCALE)/255 for k in range(4)])
+            if f'{i+flag}.png' in files_labels:
+                masks.extend([cv2.imread(dir+'/labeled'+'/'+f'{i+flag}.png', cv2.IMREAD_GRAYSCALE)/255 for k in range(4)])
+                '''cv2.imshow('im1', cv2.imread(dir+'/labeled'+'/'+f'{i+flag}.png', cv2.IMREAD_GRAYSCALE))
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()'''
             else:
                 masks.extend([np.zeros(input_image_size) for k in range(4)])
     return images, masks
@@ -155,7 +162,7 @@ keras.backend.clear_session()
 
 # Hyperparameters
 keras.utils.set_random_seed(101)
-n_epochs = 300
+n_epochs = 50
 batch_size = 2
 num_classes = 2     # one more than needed
 input_image_size = (512, 512)
@@ -165,10 +172,10 @@ if train_dif:
 else:
     train_dif = r'normal/'
 dataDir = r'data/dataset/' + train_dif
-load_model = 1
+load_model = 0
 
 # Generate train and validation arrays
-dataset = get_dataset(dataDir)
+dataset = get_dataset(dataDir, train_dif)
 train_x, train_y = np.asarray(dataset[0]), np.asarray(dataset[1])
 val_x, val_y = np.asarray([cv2.imread(dataDir+'val_source.png')]), \
                 np.asarray([cv2.imread(dataDir+'val_predict.png', cv2.IMREAD_GRAYSCALE)/255])
@@ -203,22 +210,22 @@ if not load_model:
                         verbose = True)
 
     i = 0
-    while os.path.exists(f"weights/scnn_E{n_epochs}_v{i}_{train_dif}.h5"):
+    while os.path.exists(f"weights/scnn_E{n_epochs}_v{i}_{train_dif[:-1]}.h5"):
         i += 1
-    model.save(f'weights/scnn_E{n_epochs}_v{i}_{train_dif}.h5')
+    model.save(f'weights/scnn_E{n_epochs}_v{i}_{train_dif[:-1]}.h5')
 
     plt.plot(history.history['accuracy'])
     plt.plot(history.history['val_accuracy'])
-    plt.title(f'{f"scnn_E{n_epochs}_v{i}_{train_dif}"} fitting history')
+    plt.title(f'{f"scnn_E{n_epochs}_v{i}_{train_dif[:-1]}"} fitting history')
     plt.xlabel('epoch')
     plt.legend(['train', 'validation'], loc='upper left')
 else:
     images_number = 3
     i = 0
-    while os.path.exists(f"weights/scnn_E{n_epochs}_v{i+1}_{train_dif}.h5"):
+    while os.path.exists(f"weights/scnn_E{n_epochs}_v{i+1}_{train_dif[:-1]}.h5"):
         i += 1
-    print(f'load model: scnn_E{n_epochs}_v{i}_{train_dif}.h5')
-    model = keras.models.load_model(f'weights/scnn_E{n_epochs}_v{i}_{train_dif}.h5',
+    print(f'load model: scnn_E{n_epochs}_v{i}_{train_dif[:-1]}.h5')
+    model = keras.models.load_model(f'weights/scnn_E{n_epochs}_v{i}_{train_dif[:-1]}.h5',
                                     custom_objects={"dice_metric": dice_metric,
                                                     "jaccard_distance_loss": jaccard_distance_loss})
 
@@ -235,8 +242,8 @@ cv2.imshow('im1', val_preds.reshape((512, 512, 2))[:,:,0]*255)
 cv2.imshow('im2', val_preds.reshape((512, 512, 2))[:,:,1]*255)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
-mask_gen = np.uint8(val_preds.reshape((512, 512, 2))[:,:,0]*255)
-plt.imshow(np.uint8(val_preds.reshape((512, 512, 2))[:,:,1]*255))
+mask_gen = (val_preds.reshape((512, 512, 2))[:,:,0]*255)
+plt.imshow((val_preds.reshape((512, 512, 2))[:,:,1]*255))
 plt.subplot(1, images_number, img_index+3)
 
 plt.imshow(mask_gen)
