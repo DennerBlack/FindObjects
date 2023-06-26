@@ -29,7 +29,7 @@ session = InteractiveSession(config=config)
 
 def add_noise(img):
     mean = 0
-    stddev = 0
+    stddev = 3
     noise = np.zeros(img.shape, np.uint8)
     cv2.randn(noise, mean, stddev)
 
@@ -39,20 +39,26 @@ def get_dataset(dir):
     masks = []
     images = []
     files_labels = listdir(dir+'/labeled')
-    for i, file in enumerate(listdir(dir+'/raw')):
+    raw_files = listdir(dir+'/raw')
+    raw_files.sort()
+    for i, file in enumerate(raw_files):
         if 'png' in file:
-            image = cv2.imread(dir+'/raw'+'/'+file, cv2.IMREAD_GRAYSCALE)
+            image = cv2.imread(dir+'/raw'+'/'+file)#, cv2.IMREAD_GRAYSCALE)
             blur_img = cv2.GaussianBlur(image, (3, 3), 0)
             noise = add_noise(image)
             blur_noise = add_noise(blur_img)
             '''cv2.imshow('im1', noise)
             cv2.waitKey(0)
             cv2.destroyAllWindows()'''
-            images.extend([image])#, blur_img, noise, blur_noise])
+            images.extend([image, blur_img, noise, blur_noise])#  ])#
             if f'{i+1}.png' in files_labels:
-                masks.extend([cv2.imread(dir+'/labeled'+'/'+f'{i+1}.png', cv2.IMREAD_GRAYSCALE)/255])# for k in range(4)])
+                masks.extend([cv2.imread(dir+'/labeled'+'/'+f'{i+1}.png', cv2.IMREAD_GRAYSCALE)/255 for k in range(4)]) #  ])#
+                '''plt.imshow(cv2.imread(dir+'/labeled'+'/'+f'{i+1}.png', cv2.IMREAD_GRAYSCALE)/255)
+                plt.show()
+                plt.imshow(image)
+                plt.show()'''
             else:
-                masks.extend([np.zeros(input_image_size)])# for k in range(4)])
+                masks.extend([np.zeros(input_image_size) for k in range(4)]) #  ])#
     return images, masks
 
 def getClassName(classID, cats):
@@ -128,7 +134,7 @@ def augmentationsGenerator(gen, augGeneratorArgs=None, seed=101):
 
 
 def get_model(img_size, num_classes):
-    inputs = keras.Input(shape=img_size + (1,))
+    inputs = keras.Input(shape=img_size + (3,))
 
     ### [First half of the network: downsampling inputs] ###
 
@@ -265,6 +271,7 @@ def center_crop(im):
 
 def dice_metric(y_true, y_pred):
     y_pred = y_pred[:,:,:,0]
+    #y_true = y_true[:,:,:,0]
     intersection = K.sum(K.sum(K.abs(y_true * y_pred), axis=-1))
     union = K.sum(K.sum(K.abs(y_true) + K.abs(y_pred), axis=-1))
     '''
@@ -277,6 +284,7 @@ def dice_metric(y_true, y_pred):
 
 def jaccard_distance_loss(x_true, x_pred, smooth=100):
     x_pred = x_pred[:,:,:,0]
+    #x_true = x_true[:,:,:,0]
     intersection = K.sum(K.sum(K.abs(x_true * x_pred), axis=-1))
     sum_ = K.sum(K.sum(K.abs(x_true) + K.abs(x_pred), axis=-1))
     jac = (intersection + smooth) / (sum_ - intersection + smooth)
@@ -345,32 +353,26 @@ keras.backend.clear_session()
 
 # Hyperparameters
 keras.utils.set_random_seed(101)
-n_epochs = 200
-batch_size = 3
+n_epochs = 300
+batch_size = 2
 num_classes = 2
 val_count = 1
 input_image_size = (512, 512)
 mask_type = 'normal'
-dataDir = r'data/dataset/'
+train_dif = 0   # 0 - normal | 1 - hard
+if train_dif:
+    train_dif = r'hard/'
+else:
+    train_dif = r'normal/'
+dataDir = r'data/dataset/' + train_dif
 filterClasses = ['mark']
 classes_colors = [[0, 100, 0]]
-augGeneratorArgs = dict(featurewise_center = False,
-                        samplewise_center = False,
-                        rotation_range = 0,
-                        width_shift_range = 0.0,
-                        height_shift_range = 0.0,
-                        brightness_range = (0.8,1.2),
-                        shear_range = 0.0,
-                        zoom_range = [1, 1],
-                        horizontal_flip = False,
-                        vertical_flip = False,
-                        #fill_mode = 'reflect',
-                        data_format = 'channels_last')
 
 # Generate train and validation arrays
-train_x, train_y = np.asarray(get_dataset(dataDir))
-val_x, val_y = np.asarray([cv2.imread(dataDir+'/'+'Screenshot_5_11.png', cv2.IMREAD_GRAYSCALE)]), \
-                np.asarray([cv2.imread(dataDir+'/'+'36.png', cv2.IMREAD_GRAYSCALE)/255])
+dataset = get_dataset(dataDir)
+train_x, train_y = np.asarray(dataset[0]), np.asarray(dataset[1])
+val_x, val_y = np.asarray([cv2.imread(dataDir+'val_source.png')]), \
+                np.asarray([cv2.imread(dataDir+'val_predict.png', cv2.IMREAD_GRAYSCALE)/255])
 img_index = 0
 images_number = 0
 model = None
@@ -402,30 +404,31 @@ if not load_model:
                         verbose = True)
 
     i = 0
-    while os.path.exists(f"weights/coco_scnn_E{n_epochs}_v{i}.h5"):
+    while os.path.exists(f"weights/coco_scnn_E{n_epochs}_v{i}_{train_dif}.h5"):
         i += 1
-    model.save(f'weights/coco_scnn_E{n_epochs}_v{i}.h5')
+    model.save(f'weights/coco_scnn_E{n_epochs}_v{i}_{train_dif}.h5')
 
     plt.plot(history.history['accuracy'])
     plt.plot(history.history['val_accuracy'])
-    plt.title(f'{f"coco_scnn_E{n_epochs}_v{i}"} fitting history; Metric:MeanIoU')
+    plt.title(f'{f"coco_scnn_E{n_epochs}_v{i}_{train_dif}"} fitting history')
     plt.xlabel('epoch')
     plt.legend(['train', 'validation'], loc='upper left')
 else:
     images_number = 3
     i = 0
-    while os.path.exists(f"weights/coco_scnn_E{n_epochs}_v{i+1}.h5"):
+    while os.path.exists(f"weights/coco_scnn_E{n_epochs}_v{i+1}_{train_dif}.h5"):
         i += 1
-    print(f'load model: coco_scnn_E{n_epochs}_v{i}.h5')
-    model = keras.models.load_model(f'weights/coco_scnn_E{n_epochs}_v{i}.h5', custom_objects={"dice_metric": dice_metric,
-                                                        "jaccard_distance_loss": jaccard_distance_loss})
+    print(f'load model: coco_scnn_E{n_epochs}_v{i}_{train_dif}.h5')
+    model = keras.models.load_model(f'weights/coco_scnn_E{n_epochs}_v{i}_{train_dif}.h5',
+                                    custom_objects={"dice_metric": dice_metric,
+                                                    "jaccard_distance_loss": jaccard_distance_loss})
 
 
-image_gen = cv2.imread(dataDir+'/'+'img.png', cv2.IMREAD_GRAYSCALE)
+image_gen = cv2.imread(dataDir+'/'+'val_source.png')#, cv2.IMREAD_GRAYSCALE)
 image = image_gen
 plt.subplot(1, images_number, img_index+1)
 plt.imshow(image)
-val_preds = model.predict(cv2.resize(image, input_image_size).reshape(1,*input_image_size,1))
+val_preds = model.predict(cv2.resize(image, input_image_size).reshape(1,*input_image_size,3))
 
 plt.subplot(1, images_number, img_index+2)
 cv2.imshow('im0', image)
@@ -434,8 +437,7 @@ cv2.imshow('im2', val_preds.reshape((512, 512, 2))[:,:,1]*255)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 mask_gen = np.uint8(val_preds.reshape((512, 512, 2))[:,:,0]*255)
-plt.imshow(mask_gen)
-
+plt.imshow(np.uint8(val_preds.reshape((512, 512, 2))[:,:,1]*255))
 plt.subplot(1, images_number, img_index+3)
 #mask_gen_overlay = np.asarray(mask_gen)
 #masked_image = get_colored_mask(mask_gen_overlay, num_classes, classes_colors, filterClasses)
