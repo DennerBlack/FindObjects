@@ -162,7 +162,7 @@ keras.backend.clear_session()
 
 # Hyperparameters
 keras.utils.set_random_seed(101)
-n_epochs = 50
+n_epochs = 300
 batch_size = 2
 num_classes = 2     # one more than needed
 input_image_size = (512, 512)
@@ -214,8 +214,8 @@ if not load_model:
         i += 1
     model.save(f'weights/scnn_E{n_epochs}_v{i}_{train_dif[:-1]}.h5')
 
-    plt.plot(history.history['accuracy'])
-    plt.plot(history.history['val_accuracy'])
+    plt.plot(history.history['dice_metric'])
+    plt.plot(history.history['val_dice_metric'])
     plt.title(f'{f"scnn_E{n_epochs}_v{i}_{train_dif[:-1]}"} fitting history')
     plt.xlabel('epoch')
     plt.legend(['train', 'validation'], loc='upper left')
@@ -235,18 +235,12 @@ image = image_gen
 plt.subplot(1, images_number, img_index+1)
 plt.imshow(image)
 val_preds = model.predict(cv2.resize(image, input_image_size).reshape(1,*input_image_size,3))
-
+normal_mask = np.uint8(val_preds.reshape((512, 512, 2))[:,:,1]*255)
 plt.subplot(1, images_number, img_index+2)
-cv2.imshow('im0', image)
-cv2.imshow('im1', val_preds.reshape((512, 512, 2))[:,:,0]*255)
-cv2.imshow('im2', val_preds.reshape((512, 512, 2))[:,:,1]*255)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-mask_gen = (val_preds.reshape((512, 512, 2))[:,:,0]*255)
-plt.imshow((val_preds.reshape((512, 512, 2))[:,:,1]*255))
+plt.imshow(normal_mask)
 plt.subplot(1, images_number, img_index+3)
-
-plt.imshow(mask_gen)
+image[:,:,1] = cv2.addWeighted(np.uint8(image[:,:,1]), 0.9, normal_mask, 0.9, 1)
+plt.imshow(image)
 plt.show()
 
 
