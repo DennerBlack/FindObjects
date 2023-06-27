@@ -1,7 +1,4 @@
 import os
-
-from matplotlib import pyplot as plt
-
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 import numpy as np
