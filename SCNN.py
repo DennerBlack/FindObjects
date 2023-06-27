@@ -57,11 +57,11 @@ class SCNN():
 
         canvas = np.zeros((self.input_size[0]*dims[0], self.input_size[1]*dims[1], 3))
 
-        for i in dims[0]:
-            for j in dims[1]:
+        for i in range(dims[0]):
+            for j in range(dims[1]):
                 mask = self._single_prediction(images[i+dims[0]*j])
                 canvas[i * self.input_size[0]:(i + 1) * self.input_size[0],
-                      j * self.input_size[0]:(j + 1) * self.input_size[0], :] = mask
+                      j * self.input_size[0]:(j + 1) * self.input_size[0], 1] = mask
         cv2.imshow('im1', canvas)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
