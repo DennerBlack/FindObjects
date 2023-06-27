@@ -26,7 +26,7 @@ diff_weights = r'weights/scnn_E300_v0_normal.h5'
 # из-за крайне малой выборки для обучения есть небольшой шум в генерируемых масках, его нужно фильтровать
 threshold = 30
 
-image = cv2.imread(image_path_hard)
+image = cv2.imread(image_path)
 # инициализация детектора, указываются веса к моделям
 detector = SCNN(weights, diff_weights)
 # нахождение масок, необходимо передать изображение, параметр чувствительности - необязателен

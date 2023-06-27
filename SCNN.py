@@ -53,14 +53,16 @@ def _clustering(image: np.ndarray, oi: np.ndarray, threshold: int):
         centers.append((x,y))
         cv2.circle(np.uint8(oi), (x, y), 30, (255, 125, 0), 2)
         cv2.circle(np.uint8(oi), (x, y), 3, (0, 0, 255), -1)
-        cv2.putText(np.uint8(oi), f'marker:{num_of_objects}', (x-30, y+60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        cv2.putText(np.uint8(oi), f'Маркер: {num_of_objects}', (x-30, y+60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
     return num_of_objects, centers
 
 
 def _show_image_date(data):
     print(f'Кол-во найденных маркеров: {data[0]}')
     if data[0]:
-        print(f'Центры найденных маркеров:{data[1]}')
+        print(f'Центры найденных маркеров:')
+        for center in data[1]:
+            print(f'X={center[0]}, Y={center[1]}')
 
 
 def _data_postprocessing(mask, image, threshold):
@@ -69,13 +71,14 @@ def _data_postprocessing(mask, image, threshold):
 
 
 class SCNN():
-    def __init__(self, model_path: str, diff_model_path: str, verbose = False):
+    def __init__(self, model_path: str, diff_model_path: str, verbose=False):
         self.model = keras.models.load_model(model_path,
-                                    custom_objects={"dice_metric": dice_metric,
-                                                    "jaccard_distance_loss": jaccard_distance_loss})
+                                             custom_objects={"dice_metric": dice_metric,
+                                                             "jaccard_distance_loss": jaccard_distance_loss})
         self.diff_model = keras.models.load_model(diff_model_path,
-                                    custom_objects={"dice_metric": dice_metric,
-                                                    "jaccard_distance_loss": jaccard_distance_loss})
+                                                  custom_objects={"dice_metric": dice_metric,
+                                                                  "jaccard_distance_loss": jaccard_distance_loss})
+        self.verbose = verbose
         self.input_size = (512, 512)
 
     def predict(self, image: np.ndarray, threshold: int = 30):
@@ -89,8 +92,10 @@ class SCNN():
         return mask_prediction, image
 
     def _single_prediction(self, image: np.ndarray):
-        mask_prediction = self.model.predict(cv2.resize(image, self.input_size).reshape(1, *self.input_size, 3))
-        diff_mask = self.diff_model.predict(cv2.resize(image, self.input_size).reshape(1, *self.input_size, 3))
+        mask_prediction = self.model.predict(cv2.resize(image, self.input_size).reshape(1, *self.input_size, 3),
+                                             verbose=self.verbose)
+        diff_mask = self.diff_model.predict(cv2.resize(image, self.input_size).reshape(1, *self.input_size, 3),
+                                            verbose=self.verbose)
         mask_prediction = cv2.bitwise_and(mask_prediction, diff_mask)
         return mask_prediction.reshape((512, 512, 2))[:, :, 1] * 255
 
