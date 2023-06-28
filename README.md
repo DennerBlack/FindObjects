@@ -40,3 +40,88 @@
 pip install –r requirements.txt
 ```
 ## Детектор
+### Обучение модели
+Основные параметры модели, их можно менять в коде для создания собственной модели)
+```
+train_dif - отвечает за сложность контрольного изображения, тоесть данное изображение и его маска были убраны из оригинального датасета, что бы модель не могла обучится на нем и была возможно оценки качества обучения.
+data_dir - путь к набору данных(изображениям)
+load_model - указывает, обучить новую модель или подгрузить полседнию версию для указанного количества эпох и сложности
+```
+Пример обучения модели с контролем качества. Слева направо: кривая обучения, изображение, маска, наложение маски на изображение
+<div align="center">
+  <img width="100%" alt="Train Normal" src="data/images/results/train_norm.png">
+</div>
+
+### Результаты работы детектора
+
+#### Большое изображение
+
+Исходное изображение не имеет маркеров, разрешение 3075х1214. 
+В тесте можно вызвать передав image_path в cv2.imread: 
+```
+image_path = r'data/images/validation/Screenshot_6.png'
+image = cv2.imread(image_path)
+```
+Оригинальное изображение и маска:
+<div align="center">
+  <img width="100%" alt="Detector test Large" src="data/images/results/detector_test_large.png">
+</div> 
+Изображение размеченное детектором, ну на нем ничего нет, как и должно быть)
+<div align="center">
+  <img width="100%" alt="Detector test Large" src="data/images/results/detector_test_large_mark.png">
+</div> 
+Вывод в консоль после отработки:
+
+```
+Кол-во найденных маркеров: 0
+```
+
+#### Нормальная сложность изображения
+
+Исходное изображение это валидационная картинка с нетаким большим количеством шумов, разрешение 512х512. 
+В тесте можно вызвать передав image_path_norm в cv2.imread: 
+```
+image_path_norm = r'data/dataset/normal/val_source.png'
+image = cv2.imread(image_path_norm)
+```
+Оригинальное изображение и маска:
+<div align="center">
+  <img width="100%" alt="Detector test norm" src="data/images/results/detector_test_norm.png">
+</div> 
+Изображение размеченное детектором:
+<div align="center">
+  <img width="100%" alt="Detector test norm" src="data/images/results/detector_test_norm_mark.png">
+</div> 
+Вывод в консоль после отработки:
+
+```
+Кол-во найденных маркеров: 2
+Центры найденных маркеров:
+X=426, Y=278
+X=237, Y=243
+```
+
+#### Высокая сложность изображения
+
+Исходное изображение это валидационная картинка с большим количеством шумов, разрешение 512х512. 
+В тесте можно вызвать передав image_path_hard в cv2.imread: 
+```
+image_path_hard = r'data/dataset/hard/val_source.png'
+image = cv2.imread(image_path_hard)
+```
+Оригинальное изображение и маска:
+<div align="center">
+  <img width="100%" alt="Detector test hard" src="data/images/results/detector_test_hard.png">
+</div> 
+Изображение размеченное детектором:
+<div align="center">
+  <img width="100%" alt="Detector test hard" src="data/images/results/detector_test_hard_mark.png">
+</div> 
+Вывод в консоль после отработки:
+
+```
+Кол-во найденных маркеров: 1
+Центры найденных маркеров:
+X=101, Y=287
+```
+
