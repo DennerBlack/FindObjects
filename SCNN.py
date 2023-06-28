@@ -67,6 +67,8 @@ def _data_postprocessing(mask, image, threshold):
     _show_image_date(objects_data)
 
 
+# класс детектора маркеров, при инициализации нужно указать веса для сетей, основная функция - predict,
+# остальные - служебные, в отрыве от predict их использовать ненужно
 class SCNN():
     def __init__(self, model_path: str, diff_model_path: str, verbose=False):
         self.model = keras.models.load_model(model_path,

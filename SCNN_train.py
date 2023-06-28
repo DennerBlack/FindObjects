@@ -1,5 +1,4 @@
 import os
-from typing import Union
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 from keras.utils import array_to_img
@@ -19,6 +18,13 @@ config = ConfigProto()
 config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
 
+'''
+Этот модуль отвечает за обучение модели и предварительный контроль результатов
+
+Можно обучить модель на своих данных данных из дирректории dstasets
+или использовать уже обученные веса для проверки работоспособности
+подробнее об этом ниже, где находятся гиперпараметры
+'''
 
 def add_noise(img):
     mean = 0
@@ -45,15 +51,10 @@ def get_dataset(dir, mode):
             blur_img = cv2.GaussianBlur(image, (3, 3), 0)
             noise = add_noise(image)
             blur_noise = add_noise(blur_img)
-            '''cv2.imshow('im1', image)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()'''
             images.extend([image, blur_img, noise, blur_noise])
             if f'{i+flag}.png' in files_labels:
                 masks.extend([cv2.imread(dir+'/labeled'+'/'+f'{i+flag}.png', cv2.IMREAD_GRAYSCALE)/255 for k in range(4)])
-                '''cv2.imshow('im1', cv2.imread(dir+'/labeled'+'/'+f'{i+flag}.png', cv2.IMREAD_GRAYSCALE))
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()'''
+
             else:
                 masks.extend([np.zeros(input_image_size) for k in range(4)])
     return images, masks
@@ -107,39 +108,6 @@ def get_model(img_size, num_classes):
     return model
 
 
-def image_resize(image: np.ndarray, width=None, height=None, inter=None) -> Union[np.array, None]:
-    inter = cv2.INTER_AREA
-    dim = None
-    try:
-        (h, w) = image.shape[:2]
-    except AttributeError:
-        return None
-    if width is None and height is None:
-        return image
-
-    if width and height:
-        return cv2.resize(image, (width, height), interpolation=inter)
-
-    if width is None:
-        r = height / float(h)
-        dim = (int(w * r), height)
-    else:
-        r = width / float(w)
-        dim = (width, int(h * r))
-
-    resized = cv2.resize(image, dim, interpolation=inter)
-
-    return resized
-
-
-def center_crop(im):
-    center = im.shape
-    min_dim = min(center[:2])
-    x = center[1] / 2 - min_dim / 2
-    y = center[0] / 2 - min_dim / 2
-    return im[int(y):int(y+min_dim), int(x):int(x+min_dim)]
-
-
 def dice_metric(y_true, y_pred):
     y_pred = y_pred[:,:,:,0]
     intersection = K.sum(K.sum(K.abs(y_true * y_pred), axis=-1))
@@ -161,6 +129,14 @@ def jaccard_distance_loss(x_true, x_pred, smooth=100):
 keras.backend.clear_session()
 
 # Hyperparameters
+'''
+Гиперпараметры влияющие на обучение модели. Количество классов и размер входного изображения менять не рекомендую
+обучающая выборка для этого не предназначена. 
+train_dif - отвечает за сложность контрольного изображения, тоесть данное изображение и его маска были убраны 
+из оригинального датасета, что бы модель не могла обучится на нем и была возможно оценки качества обучения.
+data_dir - путь к набору данных(изображениям)
+load_model - указывает, обучить новую модель или подгрузить полседнию версию для указанного количества эпох и сложности
+'''
 keras.utils.set_random_seed(101)
 n_epochs = 300
 batch_size = 2
