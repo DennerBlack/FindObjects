@@ -16,7 +16,6 @@ kernel_size = (512, 512)
 
 def cut_image(image, window_size, save=False ,save_path=None):
 	dims = np.int64(np.ceil(np.asarray([image.shape[0] / window_size[0], image.shape[1] / window_size[0]])))
-	# image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 	images = []
 	for i in range(dims[0]):
 		for j in range(dims[1]):
