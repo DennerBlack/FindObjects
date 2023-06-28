@@ -142,13 +142,13 @@ n_epochs = 300
 batch_size = 2
 num_classes = 2     # one more than needed
 input_image_size = (512, 512)
-train_dif = 0       # 0 - normal | 1 - hard
+train_dif = 1       # 0 - normal | 1 - hard
 if train_dif:
     train_dif = r'hard/'
 else:
     train_dif = r'normal/'
 dataDir = r'data/dataset/' + train_dif
-load_model = 0
+load_model = 1
 
 # Generate train and validation arrays
 dataset = get_dataset(dataDir, train_dif)

@@ -50,7 +50,7 @@ def _clustering(image: np.ndarray, oi: np.ndarray, threshold: int):
         centers.append((x,y))
         cv2.circle(np.uint8(oi), (x, y), 30, (255, 125, 0), 2)
         cv2.circle(np.uint8(oi), (x, y), 3, (0, 0, 255), -1)
-        cv2.putText(np.uint8(oi), f'Маркер: {num_of_objects}', (x-30, y+60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        cv2.putText(np.uint8(oi), f'Marker: {num_of_objects}', (x-30, y+60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
     return num_of_objects, centers
 
 
